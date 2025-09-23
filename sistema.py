@@ -165,3 +165,4 @@ if acesso_liberado:
     else:
         print("Opção inválida.")
 
+Usuarios = {"login":{"super":123456}}
