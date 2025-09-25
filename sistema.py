@@ -1,5 +1,6 @@
 import pandas as pd
 import os
+import pwinput
 from openpyxl import load_workbook
 from openpyxl.styles import Font, PatternFill, Alignment
 
@@ -14,84 +15,191 @@ acesso_liberado = False
 usuario_logado = None
 while not acesso_liberado:
     usuario = input("\nDigite seu login: ").lower().strip()
-    senha = input("Digite a senha: ").lower().strip()
+    senha = pwinput.pwinput(prompt="Digite a senha: ", mask="*").lower().strip()
+
 
     if usuario in Usuarios and Usuarios[usuario] == senha:
-        print("\nLogin efetuado com sucesso")
+        print("\n✅ Login efetuado com sucesso")
         print("_________________________________\n")
         acesso_liberado = True
         usuario_logado = usuario
     else:
-        print("\nLogin invalidado. Tente novamente")
+        print("\n❌ Login inválido. Tente novamente")
         print("_________________________________")
 
-# -------------------- CARREGAR DADOS --------------------
-dados = None
+os.system("cls" if os.name == "nt" else "clear")
 
-if os.path.exists("alunos.csv"):
-    dados = pd.read_csv("alunos.csv")
-    print("✅ Dados carregados de alunos.csv")
-elif os.path.exists("alunos.xlsx"):
-    dados = pd.read_excel("alunos.xlsx")
-    print("✅ Dados carregados de alunos.xlsx")
-else:
-    print("⚠ Nenhum arquivo de dados encontrado (alunos.csv ou alunos.xlsx)")
-    exit()
-os.system("cls")
+# -------------------- MENU COMPUTADORES --------------------
+def menu_computadores():
+    print("\n=== MENU COMPUTADORES ===")
+    print("1 - Registrar novo aluno")
+    print("2 - Consultar alunos cadastrados")
+    print("3 - Editar aluno")
+    print("4 - Excluir aluno")
+    print("5 - Voltar ao menu principal")
 
-# -------------------- FUNÇÕES --------------------
-def exibir_informacoes():
-    for idx, row in dados.iterrows():
-        print("\n=== Dados do Computador ===")
-        print(f"Número de Série do PC: {row['pc']}")
-        print(f"Aluno: {row['nome']}")
-        print(f"Horário de Entrada: {row['entrada']}")
-        print(f"Horário de Saída: {row['saida']}")
-        print("____________________________\n")
+    escolha = input("Escolha uma opção: ")
 
+    # -------------------- REGISTRAR --------------------
+    if escolha == "1":
+        pc = input("Digite o número de série do PC: ").strip()
+        nome = input("Digite o nome do aluno: ").strip()
+        entrada = input("Digite o horário de entrada (HH:MM): ").strip()
+        saida = input("Digite o horário de saída (HH:MM): ").strip()
+
+        novo_registro = pd.DataFrame([{
+            "pc": pc,
+            "nome": nome,
+            "entrada": entrada,
+            "saida": saida
+        }])
+
+        arquivo_csv = "alunos.csv"
+        arquivo_xlsx = "alunos.xlsx"
+
+        if os.path.exists(arquivo_csv):
+            antigo = pd.read_csv(arquivo_csv)
+            atualizado = pd.concat([antigo, novo_registro], ignore_index=True)
+            atualizado.to_csv(arquivo_csv, index=False)
+            atualizado.to_excel(arquivo_xlsx, index=False)
+        else:
+            novo_registro.to_csv(arquivo_csv, index=False)
+            novo_registro.to_excel(arquivo_xlsx, index=False)
+
+        print("\n✅ Registro salvo com sucesso!")
+        print(f"📂 Arquivos atualizados: {arquivo_csv}, {arquivo_xlsx}\n")
+        print("📌 Dados salvos:")
+        print(novo_registro)
+
+    # -------------------- CONSULTAR --------------------
+    elif escolha == "2":
+        if os.path.exists("alunos.csv"):
+            dados = pd.read_csv("alunos.csv")
+            if dados.empty:
+                print("\n⚠ Nenhum aluno cadastrado ainda.")
+            else:
+                for idx, row in dados.iterrows():
+                    print("\n=== Registro", idx, "===")
+                    print(f"Número de Série do PC: {row['pc']}")
+                    print(f"Aluno: {row['nome']}")
+                    print(f"Horário de Entrada: {row['entrada']}")
+                    print(f"Horário de Saída: {row['saida']}")
+                    print("____________________________")
+        else:
+            print("\n⚠ Nenhum arquivo de alunos encontrado.")
+
+    # -------------------- EDITAR --------------------
+    elif escolha == "3":
+        if not os.path.exists("alunos.csv"):
+            print("\n⚠ Nenhum arquivo encontrado para edição.")
+            return
+
+        dados = pd.read_csv("alunos.csv")
+        if dados.empty:
+            print("\n⚠ Nenhum aluno cadastrado para editar.")
+            return
+
+        print("\nAlunos cadastrados:")
+        print(dados[["pc", "nome"]])
+
+        try:
+            idx = int(input("Digite o índice do aluno que deseja editar: "))
+            if idx not in dados.index:
+                print("\n⚠ Índice inválido.")
+                return
+        except ValueError:
+            print("\n⚠ Entrada inválida.")
+            return
+
+        print("\nDeixe em branco para não alterar.")
+        novo_pc = input(f"PC atual ({dados.loc[idx,'pc']}): ").strip()
+        novo_nome = input(f"Nome atual ({dados.loc[idx,'nome']}): ").strip()
+        nova_entrada = input(f"Entrada atual ({dados.loc[idx,'entrada']}): ").strip()
+        nova_saida = input(f"Saída atual ({dados.loc[idx,'saida']}): ").strip()
+
+        if novo_pc: dados.loc[idx,"pc"] = novo_pc
+        if novo_nome: dados.loc[idx,"nome"] = novo_nome
+        if nova_entrada: dados.loc[idx,"entrada"] = nova_entrada
+        if nova_saida: dados.loc[idx,"saida"] = nova_saida
+
+        dados.to_csv("alunos.csv", index=False)
+        dados.to_excel("alunos.xlsx", index=False)
+        print("\n✅ Registro atualizado com sucesso!")
+
+    # -------------------- EXCLUIR --------------------
+    elif escolha == "4":
+        if not os.path.exists("alunos.csv"):
+            print("\n⚠ Nenhum arquivo encontrado para exclusão.")
+            return
+
+        dados = pd.read_csv("alunos.csv")
+        if dados.empty:
+            print("\n⚠ Nenhum aluno cadastrado para excluir.")
+            return
+
+        print("\nAlunos cadastrados:")
+        print(dados[["pc", "nome"]])
+
+        try:
+            idx = int(input("Digite o índice do aluno que deseja excluir: "))
+            if idx not in dados.index:
+                print("\n⚠ Índice inválido.")
+                return
+        except ValueError:
+            print("\n⚠ Entrada inválida.")
+            return
+
+        confirmacao = input(f"Tem certeza que deseja excluir o registro de {dados.loc[idx,'nome']}? (s/n): ").lower()
+        if confirmacao == "s":
+            dados = dados.drop(idx).reset_index(drop=True)
+            dados.to_csv("alunos.csv", index=False)
+            dados.to_excel("alunos.xlsx", index=False)
+            print("\n✅ Registro excluído com sucesso!")
+        else:
+            print("\n⚠ Exclusão cancelada.")
+
+    # -------------------- VOLTAR --------------------
+    elif escolha == "5":
+        return
+    else:
+        print("\n⚠ Opção inválida")
+
+# -------------------- FUNÇÃO RELATÓRIO --------------------
 def gerar_relatorio():
-    dados.to_csv("relatorio_alunos.csv", index=False)
-    excel_path = "relatorio_alunos.xlsx"
-    dados.to_excel(excel_path, index=False)
-    wb = load_workbook(excel_path)
-    ws = wb.active
+    print("\n=== RELATÓRIO DE AULA ===")
+    professor = input("Digite seu nome (professor): ").strip()
+    descricao = input("Digite o relatório da aula: ").strip()
 
-    ws.insert_rows(1)
-    ws["A1"] = "RELATÓRIO DE USO DOS COMPUTADORES"
-    ws["A1"].font = Font(bold=True, size=14)
-    ws["A1"].alignment = Alignment(horizontal="center")
-    ws.merge_cells(start_row=1, start_column=1, end_row=1, end_column=ws.max_column)
+    novo_relatorio = pd.DataFrame([{
+        "professor": professor,
+        "relatorio": descricao
+    }])
 
-    header_fill = PatternFill(start_color="B7DEE8", end_color="B7DEE8", fill_type="solid")
-    for cell in ws[2]:
-        cell.font = Font(bold=True)
-        cell.fill = header_fill
-        cell.alignment = Alignment(horizontal="center")
+    arquivo_csv = "relatorios.csv"
+    arquivo_xlsx = "relatorios.xlsx"
 
-    for col in ws.columns:
-        max_length = 0
-        col_letter = col[0].column_letter
-        for cell in col:
-            try:
-                if cell.value:
-                    max_length = max(max_length, len(str(cell.value)))
-            except:
-                pass
-        ws.column_dimensions[col_letter].width = max_length + 2
+    if os.path.exists(arquivo_csv):
+        antigo = pd.read_csv(arquivo_csv)
+        atualizado = pd.concat([antigo, novo_relatorio], ignore_index=True)
+        atualizado.to_csv(arquivo_csv, index=False)
+        atualizado.to_excel(arquivo_xlsx, index=False)
+    else:
+        novo_relatorio.to_csv(arquivo_csv, index=False)
+        novo_relatorio.to_excel(arquivo_xlsx, index=False)
 
-    wb.save(excel_path)
+    print("\n✅ Relatório salvo com sucesso!")
+    print(f"📂 Arquivos atualizados: {arquivo_csv}, {arquivo_xlsx}\n")
+    print("📌 Dados salvos:")
+    print(novo_relatorio)
 
-    print("\n📂 Relatórios gerados com sucesso:")
-    print(" - relatorio_alunos.csv")
-    print(" - relatorio_alunos.xlsx (formatado)\n")
-
+# -------------------- AGENDAMENTOS --------------------
 def menu_agendamento():
     arquivo_agendamentos = "agendamentos.csv"
 
     # Se não existir, cria com horários padrão
     if not os.path.exists(arquivo_agendamentos):
         horarios = [f"{h:02d}:00 - {h+1:02d}:00" for h in range(8, 21)]
-        pcs = dados["pc"].unique()
+        pcs = ["PC01", "PC02", "PC03"]  # Exemplo fixo
         registros = []
         for pc in pcs:
             for h in horarios:
@@ -147,22 +255,25 @@ def menu_agendamento():
     else:
         print("\n⚠ Opção inválida")
 
-# -------------------- MENU --------------------
+# -------------------- MENU PRINCIPAL --------------------
 if acesso_liberado:
-    print("Escolha uma opção:")
-    print("1 - Computadores")
-    print("2 - Agendamento")
-    print("3 - Relatório")
+    while True:
+        print("\n=== MENU PRINCIPAL ===")
+        print("1 - Computadores")
+        print("2 - Agendamento")
+        print("3 - Relatório")
+        print("4 - Sair")
 
-    opcao = input("Escolha o que deseja fazer: ")
+        opcao = input("Escolha o que deseja fazer: ")
 
-    if opcao == "1":
-        exibir_informacoes()
-    elif opcao == "2":
-        menu_agendamento()
-    elif opcao == "3":
-        gerar_relatorio()
-    else:
-        print("Opção inválida.")
-
-Usuarios = {"login":{"super":123456}}
+        if opcao == "1":
+            menu_computadores()
+        elif opcao == "2":
+            menu_agendamento()
+        elif opcao == "3":
+            gerar_relatorio()
+        elif opcao == "4":
+            print("\n👋 Saindo do sistema...")
+            break
+        else:
+            print("\n⚠ Opção inválida.")
