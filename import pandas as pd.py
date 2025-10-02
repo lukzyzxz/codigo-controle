@@ -2,6 +2,8 @@ import pandas as pd
 import os
 import pwinput
 import time
+from datetime import datetime
+from tabulate import tabulate
 from openpyxl import load_workbook
 from openpyxl.styles import Font, PatternFill, Alignment
 
@@ -19,7 +21,6 @@ while not acesso_liberado:
     usuario = input("\nDigite seu login: ").lower().strip()
     senha = pwinput.pwinput(prompt="Digite a senha: ", mask="*").lower().strip()
 
-    # limpa a tela logo após digitar a senha
     os.system("cls" if os.name == "nt" else "clear")
 
     if usuario in Usuarios and Usuarios[usuario] == senha:
@@ -33,6 +34,22 @@ while not acesso_liberado:
         print("_________________________________")
         time.sleep(1)
         os.system("cls" if os.name == "nt" else "clear")
+
+
+# -------------------- FUNÇÕES DE VALIDAÇÃO --------------------
+def validar_data(data_str):
+    try:
+        return datetime.strptime(data_str, "%d/%m/%Y").strftime("%d/%m/%Y")
+    except ValueError:
+        print("⚠ Data inválida! Use o formato DD/MM/AAAA.")
+        return None
+
+def validar_hora(hora_str):
+    try:
+        return datetime.strptime(hora_str, "%H:%M").strftime("%H:%M")
+    except ValueError:
+        print("⚠ Horário inválido! Use o formato HH:MM.")
+        return None
 
 
 # -------------------- MENU COMPUTADORES --------------------
@@ -50,9 +67,18 @@ def menu_computadores():
     if escolha == "1":
         pc = input("Digite o número de série do PC: ").strip()
         nome = input("Digite o nome do aluno: ").strip()
-        data = input("Digite a data (DD/MM/AAAA): ").strip()  # NOVO CAMPO
-        entrada = input("Digite o horário de entrada (HH:MM): ").strip()
-        saida = input("Digite o horário de saída (HH:MM): ").strip()
+
+        data = None
+        while not data:
+            data = validar_data(input("Digite a data (DD/MM/AAAA): ").strip())
+
+        entrada = None
+        while not entrada:
+            entrada = validar_hora(input("Digite o horário de entrada (HH:MM): ").strip())
+
+        saida = None
+        while not saida:
+            saida = validar_hora(input("Digite o horário de saída (HH:MM): ").strip())
 
         print("\n💾 Salvando registro...")
         time.sleep(1.2)
@@ -89,14 +115,8 @@ def menu_computadores():
             if dados.empty:
                 print("\n⚠ Nenhum aluno cadastrado ainda.")
             else:
-                for idx, row in dados.iterrows():
-                    print("\n=== Registro", idx, "===")
-                    print(f"Número de Série do PC: {row['pc']}")
-                    print(f"Aluno: {row['nome']}")
-                    print(f"Data: {row['data']}")
-                    print(f"Horário de Entrada: {row['entrada']}")
-                    print(f"Horário de Saída: {row['saida']}")
-                    print("____________________________")
+                print("\n=== Alunos Cadastrados ===")
+                print(tabulate(dados, headers="keys", tablefmt="grid", showindex=True))
         else:
             print("\n⚠ Nenhum arquivo de alunos encontrado.")
 
@@ -112,7 +132,7 @@ def menu_computadores():
             return
 
         print("\nAlunos cadastrados:")
-        print(dados[["pc", "nome", "data"]])
+        print(tabulate(dados, headers="keys", tablefmt="grid", showindex=True))
 
         try:
             idx = int(input("Digite o índice do aluno que deseja editar: "))
@@ -126,9 +146,18 @@ def menu_computadores():
         print("\nDeixe em branco para não alterar.")
         novo_pc = input(f"PC atual ({dados.loc[idx,'pc']}): ").strip()
         novo_nome = input(f"Nome atual ({dados.loc[idx,'nome']}): ").strip()
+
         nova_data = input(f"Data atual ({dados.loc[idx,'data']}): ").strip()
+        if nova_data:
+            nova_data = validar_data(nova_data)
+
         nova_entrada = input(f"Entrada atual ({dados.loc[idx,'entrada']}): ").strip()
+        if nova_entrada:
+            nova_entrada = validar_hora(nova_entrada)
+
         nova_saida = input(f"Saída atual ({dados.loc[idx,'saida']}): ").strip()
+        if nova_saida:
+            nova_saida = validar_hora(nova_saida)
 
         print("\n🔄 Atualizando registro...")
         time.sleep(1.3)
@@ -156,7 +185,7 @@ def menu_computadores():
             return
 
         print("\nAlunos cadastrados:")
-        print(dados[["pc", "nome", "data"]])
+        print(tabulate(dados, headers="keys", tablefmt="grid", showindex=True))
 
         try:
             idx = int(input("Digite o índice do aluno que deseja excluir: "))
@@ -246,7 +275,7 @@ def menu_agendamento():
             print("\n⚠ Não há horários disponíveis")
         else:
             print("\nHorários disponíveis:")
-            print(disponiveis[["pc", "horario"]])
+            print(tabulate(disponiveis[["pc", "horario"]], headers="keys", tablefmt="grid", showindex=True))
 
     elif escolha == "2":
         agendados = df_agend[df_agend["status"] == "Agendado"]
@@ -254,7 +283,7 @@ def menu_agendamento():
             print("\n⚠ Nenhum horário agendado")
         else:
             print("\nHorários agendados:")
-            print(agendados[["pc", "horario", "professor"]])
+            print(tabulate(agendados[["pc", "horario", "professor"]], headers="keys", tablefmt="grid", showindex=True))
 
     elif escolha == "3":
         disponiveis = df_agend[df_agend["status"] == "Disponível"]
@@ -263,11 +292,28 @@ def menu_agendamento():
             return
 
         print("\nHorários disponíveis:")
-        for i, row in disponiveis.iterrows():
-            print(f"{i} - PC: {row['pc']} | Horário: {row['horario']}")
+        print(tabulate(disponiveis[["pc", "horario"]], headers="keys", tablefmt="grid", showindex=True))
 
-        escolha_idx = int(input("Digite o número do horário que deseja agendar: "))
+        try:
+            escolha_idx = int(input("Digite o número do horário que deseja agendar: "))
+        except ValueError:
+            print("\n⚠ Entrada inválida.")
+            return
+
         if escolha_idx in disponiveis.index:
+            horario_escolhido = df_agend.loc[escolha_idx, "horario"]
+
+            # 🚨 Verifica se o professor já tem horário no mesmo período
+            conflito = df_agend[
+                (df_agend["professor"] == usuario_logado) &
+                (df_agend["horario"] == horario_escolhido) &
+                (df_agend["status"] == "Agendado")
+            ]
+
+            if not conflito.empty:
+                print("\n⚠ Você já tem um agendamento nesse mesmo horário.")
+                return
+
             print("\n🔄 Reservando horário...")
             time.sleep(1.5)
 

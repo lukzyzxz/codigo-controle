@@ -32,7 +32,7 @@ PC03,11:00 - 12:00,livre,Disponível
 PC03,12:00 - 13:00,livre,Disponível
 PC03,13:00 - 14:00,livre,Disponível
 PC03,14:00 - 15:00,livre,Disponível
-PC03,15:00 - 16:00,livre,Disponível
+PC03,15:00 - 16:00,admin,Agendado
 PC03,16:00 - 17:00,livre,Disponível
 PC03,17:00 - 18:00,livre,Disponível
 PC03,18:00 - 19:00,livre,Disponível
