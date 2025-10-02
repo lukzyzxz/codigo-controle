@@ -34,6 +34,7 @@ while not acesso_liberado:
         time.sleep(1)
         os.system("cls" if os.name == "nt" else "clear")
 
+
 # -------------------- MENU COMPUTADORES --------------------
 def menu_computadores():
     print("\n=== MENU COMPUTADORES ===")
@@ -42,12 +43,14 @@ def menu_computadores():
     print("3 - Editar aluno")
     print("4 - Excluir aluno")
     print("5 - Voltar ao menu principal")
+
     escolha = input("Escolha uma opção: ")
 
     # -------------------- REGISTRAR --------------------
     if escolha == "1":
         pc = input("Digite o número de série do PC: ").strip()
         nome = input("Digite o nome do aluno: ").strip()
+        data = input("Digite a data (DD/MM/AAAA): ").strip()  # NOVO CAMPO
         entrada = input("Digite o horário de entrada (HH:MM): ").strip()
         saida = input("Digite o horário de saída (HH:MM): ").strip()
 
@@ -57,6 +60,7 @@ def menu_computadores():
         novo_registro = pd.DataFrame([{
             "pc": pc,
             "nome": nome,
+            "data": data,
             "entrada": entrada,
             "saida": saida
         }])
@@ -89,6 +93,7 @@ def menu_computadores():
                     print("\n=== Registro", idx, "===")
                     print(f"Número de Série do PC: {row['pc']}")
                     print(f"Aluno: {row['nome']}")
+                    print(f"Data: {row['data']}")
                     print(f"Horário de Entrada: {row['entrada']}")
                     print(f"Horário de Saída: {row['saida']}")
                     print("____________________________")
@@ -107,7 +112,7 @@ def menu_computadores():
             return
 
         print("\nAlunos cadastrados:")
-        print(dados[["pc", "nome"]])
+        print(dados[["pc", "nome", "data"]])
 
         try:
             idx = int(input("Digite o índice do aluno que deseja editar: "))
@@ -121,6 +126,7 @@ def menu_computadores():
         print("\nDeixe em branco para não alterar.")
         novo_pc = input(f"PC atual ({dados.loc[idx,'pc']}): ").strip()
         novo_nome = input(f"Nome atual ({dados.loc[idx,'nome']}): ").strip()
+        nova_data = input(f"Data atual ({dados.loc[idx,'data']}): ").strip()
         nova_entrada = input(f"Entrada atual ({dados.loc[idx,'entrada']}): ").strip()
         nova_saida = input(f"Saída atual ({dados.loc[idx,'saida']}): ").strip()
 
@@ -129,6 +135,7 @@ def menu_computadores():
 
         if novo_pc: dados.loc[idx,"pc"] = novo_pc
         if novo_nome: dados.loc[idx,"nome"] = novo_nome
+        if nova_data: dados.loc[idx,"data"] = nova_data
         if nova_entrada: dados.loc[idx,"entrada"] = nova_entrada
         if nova_saida: dados.loc[idx,"saida"] = nova_saida
 
@@ -149,7 +156,7 @@ def menu_computadores():
             return
 
         print("\nAlunos cadastrados:")
-        print(dados[["pc", "nome"]])
+        print(dados[["pc", "nome", "data"]])
 
         try:
             idx = int(input("Digite o índice do aluno que deseja excluir: "))
@@ -160,7 +167,7 @@ def menu_computadores():
             print("\n⚠ Entrada inválida.")
             return
 
-        confirmacao = input(f"Tem certeza que deseja excluir o registro de {dados.loc[idx,'nome']}? (s/n): ").lower()
+        confirmacao = input(f"Tem certeza que deseja excluir o registro de {dados.loc[idx,'nome']} no dia {dados.loc[idx,'data']}? (s/n): ").lower()
         if confirmacao == "s":
             print("\n🗑 Apagando registro...")
             time.sleep(1)
@@ -178,6 +185,7 @@ def menu_computadores():
         return
     else:
         print("\n⚠ Opção inválida")
+
 
 # -------------------- FUNÇÃO RELATÓRIO --------------------
 def gerar_relatorio():
@@ -206,6 +214,7 @@ def gerar_relatorio():
         novo_relatorio.to_excel(arquivo_xlsx, index=False)
 
     print("\n✅ Relatório salvo com sucesso!")
+
 
 # -------------------- AGENDAMENTOS --------------------
 def menu_agendamento():
@@ -275,6 +284,7 @@ def menu_agendamento():
     else:
         print("\n⚠ Opção inválida")
 
+
 # -------------------- LIMPAR DADOS (ADMIN) --------------------
 def limpar_dados():
     if usuario_logado != "admin":
@@ -322,6 +332,7 @@ def limpar_dados():
         return
     else:
         print("\n⚠ Opção inválida.")
+
 
 # -------------------- MENU PRINCIPAL --------------------
 if acesso_liberado:
