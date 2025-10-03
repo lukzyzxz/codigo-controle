@@ -31,7 +31,7 @@ while not acesso_liberado:
         time.sleep(1)
     else:
         print("\n❌ Login inválido. Tente novamente")
-        print("_________________________________")
+        print("_"*32 + "\n")
         time.sleep(1)
         os.system("cls" if os.name == "nt" else "clear")
 
