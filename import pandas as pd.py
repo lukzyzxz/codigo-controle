@@ -25,7 +25,7 @@ while not acesso_liberado:
 
     if usuario in Usuarios and Usuarios[usuario] == senha:
         print("\n✅ Login efetuado com sucesso")
-        print("_________________________________\n")
+        print("_"*32 + "\n")
         acesso_liberado = True
         usuario_logado = usuario
         time.sleep(1)
