@@ -44,12 +44,23 @@ def validar_data(data_str):
         print("⚠ Data inválida! Use o formato DD/MM/AAAA.")
         return None
 
+
 def validar_hora(hora_str):
     try:
         return datetime.strptime(hora_str, "%H:%M").strftime("%H:%M")
     except ValueError:
         print("⚠ Horário inválido! Use o formato HH:MM.")
         return None
+
+
+def confirmar_sn(pergunta):
+    """Garante que o usuário digite apenas 's' ou 'n'"""
+    resposta = ""
+    while resposta not in ["s", "n"]:
+        resposta = input(pergunta).lower().strip()
+        if resposta not in ["s", "n"]:
+            print("⚠ Entrada inválida! Digite apenas 's' para sim ou 'n' para não.")
+    return resposta
 
 
 # -------------------- MENU COMPUTADORES --------------------
@@ -65,7 +76,9 @@ def menu_computadores():
 
     # -------------------- REGISTRAR --------------------
     if escolha == "1":
-        pc = input("Digite o número de série do PC: ").strip()
+        pc = input("Digite o número do PC (ex: 01, 02...): ").strip().upper()
+        if not pc.startswith("PC"):
+            pc = "PC" + pc.zfill(2).replace("PC", "")
         nome = input("Digite o nome do aluno: ").strip()
 
         print("\nDeseja usar a data e hora atuais para o registro?")
@@ -81,7 +94,7 @@ def menu_computadores():
             print(f"\n📅 Data atual: {data_automatica}")
             print(f"🕒 Horário atual: {hora_automatica}")
 
-            confirmar = input("Deseja confirmar essa data e hora? (s/n): ").lower().strip()
+            confirmar = confirmar_sn("Deseja confirmar essa data e hora? (s/n): ")
             if confirmar == "s":
                 data = data_automatica
                 entrada = hora_automatica
@@ -134,7 +147,6 @@ def menu_computadores():
             novo_registro.to_excel(arquivo_xlsx, index=False)
 
         print("\n✅ Registro salvo com sucesso!")
-
 
     # -------------------- CONSULTAR --------------------
     elif escolha == "2":
@@ -227,15 +239,16 @@ def menu_computadores():
             print("\n⚠ Entrada inválida.")
             return
 
-        confirmacao = input(f"Tem certeza que deseja excluir o registro de {dados.loc[idx,'nome']} no dia {dados.loc[idx,'data']}? (s/n): ").lower()
+        confirmacao = confirmar_sn(
+            f"Tem certeza que deseja excluir o registro de {dados.loc[idx,'nome']} no dia {dados.loc[idx,'data']}? (s/n): "
+        )
+
         if confirmacao == "s":
             print("\n🗑 Apagando registro...")
             time.sleep(1)
-
             dados = dados.drop(idx).reset_index(drop=True)
             dados.to_csv("alunos.csv", index=False)
             dados.to_excel("alunos.xlsx", index=False)
-
             print("\n✅ Registro excluído com sucesso!")
         else:
             print("\n⚠ Exclusão cancelada.")
@@ -334,7 +347,6 @@ def menu_agendamento():
         if escolha_idx in disponiveis.index:
             horario_escolhido = df_agend.loc[escolha_idx, "horario"]
 
-            # 🚨 Verifica se o professor já tem horário no mesmo período
             conflito = df_agend[
                 (df_agend["professor"] == usuario_logado) &
                 (df_agend["horario"] == horario_escolhido) &
