@@ -29,7 +29,7 @@ PC03,08:00 - 09:00,livre,Disponível
 PC03,09:00 - 10:00,livre,Disponível
 PC03,10:00 - 11:00,livre,Disponível
 PC03,11:00 - 12:00,livre,Disponível
-PC03,12:00 - 13:00,livre,Disponível
+PC03,12:00 - 13:00,Administrador,Agendado
 PC03,13:00 - 14:00,livre,Disponível
 PC03,14:00 - 15:00,livre,Disponível
 PC03,15:00 - 16:00,admin,Agendado

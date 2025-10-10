@@ -1,3 +1,4 @@
-pc,nome,data,entrada,saida
-PC02,João Vitor,09/10/2025,23:37,00:32
-PC02,Paulo João,31/07/2025,22:14,00:00
+pc,nome,data,entrada,saida,duracao
+PC02,João Vitor,09/10/2025,23:37,00:32,00:55
+PC02,Paulo João,31/07/2025,22:14,00:00,
+PC01,Adilson,10/10/2025,01:15,02:30,01:15

@@ -2,339 +2,323 @@ import pandas as pd
 import os
 import pwinput
 import time
-from datetime import datetime
+from datetime import datetime, timedelta
 from tabulate import tabulate
+from pathlib import Path
+from colorama import Fore, Style, init
 from openpyxl import load_workbook
-from openpyxl.styles import Font, PatternFill, Alignment
+from openpyxl.styles import Font, Alignment
 
-# -------------------- LOGIN --------------------
-Usuarios = {
-    "admin": "admin123",
-    "proftec": "tecnico123",
-    "professor": "prof123"
+init(autoreset=True)
+
+ARQ_ALUNOS = Path("alunos.csv")
+ARQ_ALUNOS_XLSX = Path("alunos.xlsx")
+ARQ_REL = Path("relatorios.csv")
+ARQ_REL_XLSX = Path("relatorios.xlsx")
+ARQ_AG = Path("agendamentos.csv")
+USERS = {
+    "admin": {"senha": "admin123", "nome": "Administrador"},
+    "proftec": {"senha": "tecnico123", "nome": "Prof. Técnico"},
+    "professor": {"senha": "prof123", "nome": "Professor"}
 }
-
-acesso_liberado = False
-usuario_logado = None
 
 def limpar_tela():
     os.system("cls" if os.name == "nt" else "clear")
 
-while not acesso_liberado:
-    usuario = input("\nDigite seu login: ").lower().strip()
-    senha = pwinput.pwinput(prompt="Digite a senha: ", mask="*").lower().strip()
-    limpar_tela()
+def msg(text, tipo="info"):
+    cores = {"info": Fore.CYAN, "ok": Fore.GREEN, "warn": Fore.YELLOW, "err": Fore.RED}
+    print(cores.get(tipo, Fore.CYAN) + text + Style.RESET_ALL)
 
-    if usuario in Usuarios and Usuarios[usuario] == senha:
-        print("\n✅ Login efetuado com sucesso")
-        print("_"*32 + "\n")
-        acesso_liberado = True
-        usuario_logado = usuario
-        time.sleep(1)
-    else:
-        print("\n❌ Login inválido. Tente novamente")
-        print("_"*32 + "\n")
-        time.sleep(1)
-        limpar_tela()
+def pedir_validado(prompt, func):
+    while True:
+        v = input(prompt).strip()
+        r = func(v)
+        if r is not None:
+            return r
 
-# -------------------- FUNÇÕES DE VALIDAÇÃO --------------------
-def validar_nome(nome):
+def validar_nome(nome: str):
     if nome.replace(" ", "").isalpha():
         return nome.title().strip()
-    else:
-        print("⚠ O nome deve conter apenas letras e espaços.")
-        return None
+    return None
 
-def validar_numero(texto):
+def validar_numero(texto: str):
     if texto.isdigit():
         return texto
-    else:
-        print("⚠ Digite apenas números.")
+    return None
+
+def validar_data(data_str: str):
+    try:
+        d = datetime.strptime(data_str, "%d/%m/%Y")
+        return d.strftime("%d/%m/%Y")
+    except Exception:
         return None
 
-def validar_data(data_str):
+def validar_hora(hora_str: str):
+    try:
+        h = datetime.strptime(hora_str, "%H:%M")
+        return h.strftime("%H:%M")
+    except Exception:
+        return None
+
+def confirmar_sn(mensagem: str):
+    while True:
+        r = input(mensagem + " (s/n): ").lower().strip()
+        if r in ("s", "n"):
+            return r
+
+def salvar_csv_xlsx(df: pd.DataFrame, csv_path: Path, xlsx_path: Path):
+    df.to_csv(csv_path, index=False)
+    try:
+        df.to_excel(xlsx_path, index=False)
+        try:
+            wb = load_workbook(xlsx_path)
+            ws = wb.active
+            header_font = Font(bold=True)
+            for cell in next(ws.iter_rows(min_row=1, max_row=1)):
+                cell.font = header_font
+                cell.alignment = Alignment(horizontal="center")
+            wb.save(xlsx_path)
+        except Exception:
+            pass
+    except Exception:
+        df.to_csv(csv_path, index=False)
+
+def calcular_duracao(data_str: str, entrada_str: str, saida_str: str) -> str:
     try:
         data = datetime.strptime(data_str, "%d/%m/%Y")
-        return data.strftime("%d/%m/%Y")
-    except ValueError:
-        print("⚠ Data inválida! Use o formato DD/MM/AAAA e verifique se o dia existe.")
-        return None
+        entrada = datetime.strptime(entrada_str, "%H:%M").time()
+        saida = datetime.strptime(saida_str, "%H:%M").time()
+        dt_entrada = datetime.combine(data.date(), entrada)
+        dt_saida = datetime.combine(data.date(), saida)
+        if dt_saida < dt_entrada:
+            dt_saida += timedelta(days=1)
+        delta = dt_saida - dt_entrada
+        horas = int(delta.total_seconds() // 3600)
+        minutos = int((delta.total_seconds() % 3600) // 60)
+        return f"{horas:02d}:{minutos:02d}"
+    except Exception:
+        return ""
 
-def validar_hora(hora_str):
+def carregar_dataframe(path: Path, cols=None):
+    if not path.exists():
+        if cols:
+            return pd.DataFrame(columns=cols)
+        return pd.DataFrame()
     try:
-        hora = datetime.strptime(hora_str, "%H:%M")
-        return hora.strftime("%H:%M")
-    except ValueError:
-        print("⚠ Horário inválido! Use o formato HH:MM (00–23h / 00–59min).")
-        return None
+        return pd.read_csv(path)
+    except Exception:
+        return pd.DataFrame()
 
-def confirmar_sn(mensagem):
+def menu_computadores(usuario_logado: str):
     while True:
-        resposta = input(mensagem + " (s/n): ").lower().strip()
-        if resposta in ["s", "n"]:
-            return resposta
-        print("⚠ Responda apenas com 's' para sim ou 'n' para não.")
+        print("\n=== MENU COMPUTADORES ===")
+        print("1 - Registrar novo aluno")
+        print("2 - Consultar alunos cadastrados")
+        print("3 - Editar aluno")
+        print("4 - Excluir aluno")
+        print("5 - Voltar ao menu principal")
+        escolha = input("Escolha uma opção: ").strip()
 
-# -------------------- MENU COMPUTADORES --------------------
-def menu_computadores():
-    print("\n=== MENU COMPUTADORES ===")
-    print("1 - Registrar novo aluno")
-    print("2 - Consultar alunos cadastrados")
-    print("3 - Editar aluno")
-    print("4 - Excluir aluno")
-    print("5 - Voltar ao menu principal")
+        if escolha == "1":
+            numero_pc = pedir_validado("Digite o número do PC (ex: 01, 02...): ", validar_numero)
+            pc = f"PC{numero_pc.zfill(2)}"
+            nome = pedir_validado("Digite o nome do aluno: ", validar_nome)
 
-    escolha = input("Escolha uma opção: ")
+            print("\nDeseja usar a data e hora atuais para o registro?")
+            print("1 - Sim, usar data e hora atuais")
+            print("2 - Não, quero inserir manualmente")
+            opc = ""
+            while opc not in ("1", "2"):
+                opc = input("Escolha uma opção (1/2): ").strip()
 
-    # -------------------- REGISTRAR --------------------
-    if escolha == "1":
-        numero_pc = None
-        while not numero_pc:
-            numero_pc = validar_numero(input("Digite o número do PC (ex: 01, 02...): ").strip())
-        pc = f"PC{numero_pc.zfill(2)}"
-
-        nome = None
-        while not nome:
-            nome = validar_nome(input("Digite o nome do aluno: ").strip())
-
-        print("\nDeseja usar a data e hora atuais para o registro?")
-        print("1 - Sim, usar data e hora atuais")
-        print("2 - Não, quero inserir manualmente")
-
-        opc = ""
-        while opc not in ["1", "2"]:
-            opc = input("Escolha uma opção (1/2): ").strip()
-
-        if opc == "1":
-            agora = datetime.now()
-            data_automatica = agora.strftime("%d/%m/%Y")
-            hora_automatica = agora.strftime("%H:%M")
-
-            print(f"\n📅 Data atual: {data_automatica}")
-            print(f"🕒 Horário atual: {hora_automatica}")
-
-            if confirmar_sn("Deseja confirmar essa data e hora?") == "s":
-                data = data_automatica
-                entrada = hora_automatica
-                print("\n✅ Data e hora registradas automaticamente.")
+            if opc == "1":
+                agora = datetime.now()
+                data_automatica = agora.strftime("%d/%m/%Y")
+                hora_automatica = agora.strftime("%H:%M")
+                print(f"\n📅 Data atual: {data_automatica}")
+                print(f"🕒 Horário atual: {hora_automatica}")
+                if confirmar_sn("Deseja confirmar essa data e hora?") == "s":
+                    data = data_automatica
+                    entrada = hora_automatica
+                    msg("\n✅ Data e hora registradas automaticamente.", "ok")
+                else:
+                    data = None
+                    entrada = None
             else:
-                print("\n🔧 Ok, insira manualmente os dados.")
-                data, entrada = None, None
-        else:
-            data, entrada = None, None
+                data = None
+                entrada = None
 
-        while not data:
-            data = validar_data(input("Digite a data (DD/MM/AAAA): ").strip())
+            if not data:
+                data = pedir_validado("Digite a data (DD/MM/AAAA): ", validar_data)
+            if not entrada:
+                entrada = pedir_validado("Digite o horário de entrada (HH:MM): ", validar_hora)
+            saida = pedir_validado("Digite o horário de saída (HH:MM): ", validar_hora)
 
-        while not entrada:
-            entrada = validar_hora(input("Digite o horário de entrada (HH:MM): ").strip())
+            duracao = calcular_duracao(data, entrada, saida)
 
-        saida = None
-        while not saida:
-            saida = validar_hora(input("Digite o horário de saída (HH:MM): ").strip())
+            novo_registro = pd.DataFrame([{
+                "pc": pc,
+                "nome": nome,
+                "data": data,
+                "entrada": entrada,
+                "saida": saida,
+                "duracao": duracao
+            }])
 
-        print("\n💾 Salvando registro...")
-        time.sleep(1.2)
+            df = carregar_dataframe(ARQ_ALUNOS, cols=["pc", "nome", "data", "entrada", "saida", "duracao"])
+            if not df.empty:
+                df = pd.concat([df, novo_registro], ignore_index=True)
+            else:
+                df = novo_registro
 
-        novo_registro = pd.DataFrame([{
-            "pc": pc,
-            "nome": nome,
-            "data": data,
-            "entrada": entrada,
-            "saida": saida
-        }])
+            salvar_csv_xlsx(df, ARQ_ALUNOS, ARQ_ALUNOS_XLSX)
+            msg("\n✅ Registro salvo com sucesso!", "ok")
 
-        arquivo_csv = "alunos.csv"
-        arquivo_xlsx = "alunos.xlsx"
-
-        if os.path.exists(arquivo_csv):
-            antigo = pd.read_csv(arquivo_csv)
-            atualizado = pd.concat([antigo, novo_registro], ignore_index=True)
-            atualizado.to_csv(arquivo_csv, index=False)
-            atualizado.to_excel(arquivo_xlsx, index=False)
-        else:
-            novo_registro.to_csv(arquivo_csv, index=False)
-            novo_registro.to_excel(arquivo_xlsx, index=False)
-
-        print("\n✅ Registro salvo com sucesso!")
-
-    # -------------------- CONSULTAR --------------------
-    elif escolha == "2":
-        print("\n📂 Carregando dados dos alunos...")
-        time.sleep(1)
-
-        if os.path.exists("alunos.csv"):
-            dados = pd.read_csv("alunos.csv")
+        elif escolha == "2":
+            msg("\n📂 Carregando dados dos alunos...", "info")
+            time.sleep(0.6)
+            dados = carregar_dataframe(ARQ_ALUNOS)
             if dados.empty:
-                print("\n⚠ Nenhum aluno cadastrado ainda.")
+                msg("\n⚠ Nenhum aluno cadastrado ainda.", "warn")
             else:
                 print("\n=== Alunos Cadastrados ===")
                 print(tabulate(dados, headers="keys", tablefmt="grid", showindex=True))
-        else:
-            print("\n⚠ Nenhum arquivo de alunos encontrado.")
 
-    # -------------------- EDITAR --------------------
-    elif escolha == "3":
-        if not os.path.exists("alunos.csv"):
-            print("\n⚠ Nenhum arquivo encontrado para edição.")
-            return
-
-        dados = pd.read_csv("alunos.csv")
-        if dados.empty:
-            print("\n⚠ Nenhum aluno cadastrado para editar.")
-            return
-
-        print("\nAlunos cadastrados:")
-        print(tabulate(dados, headers="keys", tablefmt="grid", showindex=True))
-
-        try:
-            idx = int(input("Digite o índice do aluno que deseja editar: "))
+        elif escolha == "3":
+            if not ARQ_ALUNOS.exists():
+                msg("\n⚠ Nenhum arquivo encontrado para edição.", "warn")
+                continue
+            dados = carregar_dataframe(ARQ_ALUNOS)
+            if dados.empty:
+                msg("\n⚠ Nenhum aluno cadastrado para editar.", "warn")
+                continue
+            print("\nAlunos cadastrados:")
+            print(tabulate(dados, headers="keys", tablefmt="grid", showindex=True))
+            try:
+                idx = int(input("Digite o índice do aluno que deseja editar: ").strip())
+            except Exception:
+                msg("\n⚠ Entrada inválida.", "warn")
+                continue
             if idx not in dados.index:
-                print("\n⚠ Índice inválido.")
-                return
-        except ValueError:
-            print("\n⚠ Entrada inválida.")
-            return
-
-        print("\nDeixe em branco para não alterar.")
-        novo_pc = input(f"PC atual ({dados.loc[idx,'pc']}): ").strip()
-        if novo_pc:
-            num = validar_numero(novo_pc.replace("PC", "").replace("pc", ""))
-            if num:
-                novo_pc = f"PC{num.zfill(2)}"
+                msg("\n⚠ Índice inválido.", "warn")
+                continue
+            print("\nDeixe em branco para não alterar.")
+            novo_pc = input(f"PC atual ({dados.loc[idx,'pc']}): ").strip()
+            if novo_pc:
+                num = validar_numero(novo_pc.replace("PC", "").replace("pc", ""))
+                if num:
+                    novo_pc = f"PC{num.zfill(2)}"
+                else:
+                    novo_pc = dados.loc[idx, "pc"]
             else:
                 novo_pc = dados.loc[idx, "pc"]
 
-        novo_nome = input(f"Nome atual ({dados.loc[idx,'nome']}): ").strip()
-        if novo_nome:
-            validado = validar_nome(novo_nome)
-            novo_nome = validado if validado else dados.loc[idx, "nome"]
+            novo_nome = input(f"Nome atual ({dados.loc[idx,'nome']}): ").strip()
+            if novo_nome:
+                valid = validar_nome(novo_nome)
+                novo_nome = valid if valid else dados.loc[idx, "nome"]
+            else:
+                novo_nome = dados.loc[idx, "nome"]
 
-        nova_data = input(f"Data atual ({dados.loc[idx,'data']}): ").strip()
-        if nova_data:
-            nova_data = validar_data(nova_data)
+            nova_data = input(f"Data atual ({dados.loc[idx,'data']}): ").strip()
+            if nova_data:
+                nova_data = validar_data(nova_data) or dados.loc[idx, "data"]
+            else:
+                nova_data = dados.loc[idx, "data"]
 
-        nova_entrada = input(f"Entrada atual ({dados.loc[idx,'entrada']}): ").strip()
-        if nova_entrada:
-            nova_entrada = validar_hora(nova_entrada)
+            nova_entrada = input(f"Entrada atual ({dados.loc[idx,'entrada']}): ").strip()
+            if nova_entrada:
+                nova_entrada = validar_hora(nova_entrada) or dados.loc[idx, "entrada"]
+            else:
+                nova_entrada = dados.loc[idx, "entrada"]
 
-        nova_saida = input(f"Saída atual ({dados.loc[idx,'saida']}): ").strip()
-        if nova_saida:
-            nova_saida = validar_hora(nova_saida)
+            nova_saida = input(f"Saída atual ({dados.loc[idx,'saida']}): ").strip()
+            if nova_saida:
+                nova_saida = validar_hora(nova_saida) or dados.loc[idx, "saida"]
+            else:
+                nova_saida = dados.loc[idx, "saida"]
 
-        print("\n🔄 Atualizando registro...")
-        time.sleep(1.3)
+            duracao = calcular_duracao(nova_data, nova_entrada, nova_saida)
 
-        if novo_pc: dados.loc[idx, "pc"] = novo_pc
-        if novo_nome: dados.loc[idx, "nome"] = novo_nome
-        if nova_data: dados.loc[idx, "data"] = nova_data
-        if nova_entrada: dados.loc[idx, "entrada"] = nova_entrada
-        if nova_saida: dados.loc[idx, "saida"] = nova_saida
+            dados.loc[idx, "pc"] = novo_pc
+            dados.loc[idx, "nome"] = novo_nome
+            dados.loc[idx, "data"] = nova_data
+            dados.loc[idx, "entrada"] = nova_entrada
+            dados.loc[idx, "saida"] = nova_saida
+            dados.loc[idx, "duracao"] = duracao
 
-        dados.to_csv("alunos.csv", index=False)
-        dados.to_excel("alunos.xlsx", index=False)
+            salvar_csv_xlsx(dados, ARQ_ALUNOS, ARQ_ALUNOS_XLSX)
+            msg("\n✅ Registro atualizado com sucesso!", "ok")
 
-        print("\n✅ Registro atualizado com sucesso!")
-
-    # -------------------- EXCLUIR --------------------
-    elif escolha == "4":
-        if not os.path.exists("alunos.csv"):
-            print("\n⚠ Nenhum arquivo encontrado para exclusão.")
-            return
-
-        dados = pd.read_csv("alunos.csv")
-        if dados.empty:
-            print("\n⚠ Nenhum aluno cadastrado para excluir.")
-            return
-
-        print("\nAlunos cadastrados:")
-        print(tabulate(dados, headers="keys", tablefmt="grid", showindex=True))
-
-        try:
-            idx = int(input("Digite o índice do aluno que deseja excluir: "))
+        elif escolha == "4":
+            if not ARQ_ALUNOS.exists():
+                msg("\n⚠ Nenhum arquivo encontrado para exclusão.", "warn")
+                continue
+            dados = carregar_dataframe(ARQ_ALUNOS)
+            if dados.empty:
+                msg("\n⚠ Nenhum aluno cadastrado para excluir.", "warn")
+                continue
+            print("\nAlunos cadastrados:")
+            print(tabulate(dados, headers="keys", tablefmt="grid", showindex=True))
+            try:
+                idx = int(input("Digite o índice do aluno que deseja excluir: ").strip())
+            except Exception:
+                msg("\n⚠ Entrada inválida.", "warn")
+                continue
             if idx not in dados.index:
-                print("\n⚠ Índice inválido.")
-                return
-        except ValueError:
-            print("\n⚠ Entrada inválida.")
+                msg("\n⚠ Índice inválido.", "warn")
+                continue
+            if confirmar_sn(f"Tem certeza que deseja excluir o registro de {dados.loc[idx,'nome']} no dia {dados.loc[idx,'data']}?") == "s":
+                msg("\n🗑 Apagando registro...", "info")
+                time.sleep(0.6)
+                dados = dados.drop(idx).reset_index(drop=True)
+                salvar_csv_xlsx(dados, ARQ_ALUNOS, ARQ_ALUNOS_XLSX)
+                msg("\n✅ Registro excluído com sucesso!", "ok")
+            else:
+                msg("\n⚠ Exclusão cancelada.", "warn")
+
+        elif escolha == "5":
             return
-
-        if confirmar_sn(f"Tem certeza que deseja excluir o registro de {dados.loc[idx,'nome']} no dia {dados.loc[idx,'data']}?") == "s":
-            print("\n🗑 Apagando registro...")
-            time.sleep(1)
-
-            dados = dados.drop(idx).reset_index(drop=True)
-            dados.to_csv("alunos.csv", index=False)
-            dados.to_excel("alunos.xlsx", index=False)
-
-            print("\n✅ Registro excluído com sucesso!")
         else:
-            print("\n⚠ Exclusão cancelada.")
+            msg("\n⚠ Opção inválida.", "warn")
 
-    elif escolha == "5":
-        return
-    else:
-        print("\n⚠ Opção inválida.")
-
-# -------------------- FUNÇÃO RELATÓRIO --------------------
-def gerar_relatorio():
+def gerar_relatorio(usuario_logado: str):
     print("\n=== RELATÓRIO DE AULA ===")
-
-    professor = None
-    while not professor:
-        professor = validar_nome(input("Digite seu nome (professor): ").strip())
-
+    professor = pedir_validado("Digite seu nome (professor): ", validar_nome)
     descricao = input("Digite o relatório da aula: ").strip()
-    print("\n💾 Salvando relatório...")
-    time.sleep(1.3)
-
-    novo_relatorio = pd.DataFrame([{
-        "professor": professor,
-        "relatorio": descricao
-    }])
-
-    arquivo_csv = "relatorios.csv"
-    arquivo_xlsx = "relatorios.xlsx"
-
-    if os.path.exists(arquivo_csv):
-        antigo = pd.read_csv(arquivo_csv)
-        atualizado = pd.concat([antigo, novo_relatorio], ignore_index=True)
-        atualizado.to_csv(arquivo_csv, index=False)
-        atualizado.to_excel(arquivo_xlsx, index=False)
+    msg("\n💾 Salvando relatório...", "info")
+    time.sleep(0.6)
+    novo_rel = pd.DataFrame([{"professor": professor, "relatorio": descricao, "usuario": usuario_logado}])
+    df = carregar_dataframe(ARQ_REL, cols=["professor", "relatorio", "usuario"])
+    if not df.empty:
+        df = pd.concat([df, novo_rel], ignore_index=True)
     else:
-        novo_relatorio.to_csv(arquivo_csv, index=False)
-        novo_relatorio.to_excel(arquivo_xlsx, index=False)
+        df = novo_rel
+    salvar_csv_xlsx(df, ARQ_REL, ARQ_REL_XLSX)
+    msg("\n✅ Relatório salvo com sucesso!", "ok")
 
-    print("\n✅ Relatório salvo com sucesso!")
-
-# -------------------- AGENDAMENTOS --------------------
-def menu_agendamento():
-    arquivo_agendamentos = "agendamentos.csv"
-
-    if not os.path.exists(arquivo_agendamentos):
+def menu_agendamento(usuario_logado: str):
+    if not ARQ_AG.exists():
         horarios = [f"{h:02d}:00 - {h+1:02d}:00" for h in range(8, 21)]
         pcs = ["PC01", "PC02", "PC03"]
         registros = []
         for pc in pcs:
             for h in horarios:
                 registros.append([pc, h, "livre", "Disponível"])
-        df_agend = pd.DataFrame(registros, columns=["pc", "horario", "professor", "status"])
-        df_agend.to_csv(arquivo_agendamentos, index=False)
-
-    df_agend = pd.read_csv(arquivo_agendamentos)
-
+        df_ag = pd.DataFrame(registros, columns=["pc", "horario", "professor", "status"])
+        salvar_csv_xlsx(df_ag, ARQ_AG, Path("agendamentos.xlsx"))
+    df_agend = carregar_dataframe(ARQ_AG, cols=["pc", "horario", "professor", "status"])
     print("\n=== AGENDAMENTOS ===")
     print("1 - Ver horários disponíveis")
     print("2 - Ver horários já agendados")
     print("3 - Agendar horário")
     print("4 - Voltar ao menu principal")
-
-    escolha = input("Escolha uma opção: ")
+    escolha = input("Escolha uma opção: ").strip()
 
     if escolha == "1":
         disponiveis = df_agend[df_agend["status"] == "Disponível"]
         if disponiveis.empty:
-            print("\n⚠ Não há horários disponíveis")
+            msg("\n⚠ Não há horários disponíveis", "warn")
         else:
             print("\nHorários disponíveis:")
             print(tabulate(disponiveis[["pc", "horario"]], headers="keys", tablefmt="grid", showindex=True))
@@ -342,7 +326,7 @@ def menu_agendamento():
     elif escolha == "2":
         agendados = df_agend[df_agend["status"] == "Agendado"]
         if agendados.empty:
-            print("\n⚠ Nenhum horário agendado")
+            msg("\n⚠ Nenhum horário agendado", "warn")
         else:
             print("\nHorários agendados:")
             print(tabulate(agendados[["pc", "horario", "professor"]], headers="keys", tablefmt="grid", showindex=True))
@@ -350,119 +334,137 @@ def menu_agendamento():
     elif escolha == "3":
         disponiveis = df_agend[df_agend["status"] == "Disponível"]
         if disponiveis.empty:
-            print("\n⚠ Nenhum horário disponível para agendamento")
+            msg("\n⚠ Nenhum horário disponível para agendamento", "warn")
             return
-
         print("\nHorários disponíveis:")
         print(tabulate(disponiveis[["pc", "horario"]], headers="keys", tablefmt="grid", showindex=True))
-
         try:
-            escolha_idx = int(input("Digite o número do horário que deseja agendar: "))
-        except ValueError:
-            print("\n⚠ Entrada inválida.")
+            escolha_idx = int(input("Digite o número do horário que deseja agendar: ").strip())
+        except Exception:
+            msg("\n⚠ Entrada inválida.", "warn")
             return
-
         if escolha_idx in disponiveis.index:
             horario_escolhido = df_agend.loc[escolha_idx, "horario"]
-
             conflito = df_agend[
-                (df_agend["professor"] == usuario_logado) &
+                (df_agend["professor"] == USERS[usuario_logado]["nome"]) &
                 (df_agend["horario"] == horario_escolhido) &
                 (df_agend["status"] == "Agendado")
             ]
-
             if not conflito.empty:
-                print("\n⚠ Você já tem um agendamento nesse mesmo horário.")
+                msg("\n⚠ Você já tem um agendamento nesse mesmo horário.", "warn")
                 return
-
-            print("\n🔄 Reservando horário...")
-            time.sleep(1.5)
-
-            df_agend.loc[escolha_idx, "professor"] = usuario_logado
+            msg("\n🔄 Reservando horário...", "info")
+            time.sleep(0.6)
+            df_agend.loc[escolha_idx, "professor"] = USERS[usuario_logado]["nome"]
             df_agend.loc[escolha_idx, "status"] = "Agendado"
-            df_agend.to_csv(arquivo_agendamentos, index=False)
-
-            print("\n✅ Agendamento realizado com sucesso!")
+            salvar_csv_xlsx(df_agend, ARQ_AG, Path("agendamentos.xlsx"))
+            msg("\n✅ Agendamento realizado com sucesso!", "ok")
         else:
-            print("\n⚠ Opção inválida")
+            msg("\n⚠ Opção inválida", "warn")
 
     elif escolha == "4":
         return
     else:
-        print("\n⚠ Opção inválida")
+        msg("\n⚠ Opção inválida", "warn")
 
-# -------------------- LIMPAR DADOS (ADMIN) --------------------
-def limpar_dados():
+def limpar_dados(usuario_logado: str):
     if usuario_logado != "admin":
-        print("\n⚠ Apenas o ADMIN pode acessar esta opção.")
+        msg("\n⚠ Apenas o ADMIN pode acessar esta opção.", "warn")
         return
-
     print("\n=== MENU DE LIMPEZA DE DADOS ===")
     print("1 - Limpar relatórios")
     print("2 - Limpar agendamentos")
     print("3 - Limpar alunos")
     print("4 - Limpar tudo")
     print("5 - Voltar")
-
-    escolha = input("Escolha uma opção: ")
-
+    escolha = input("Escolha uma opção: ").strip()
     if escolha == "1":
-        print("\n🧹 Limpando relatórios...")
-        time.sleep(1.5)
-        for arq in ["relatorios.csv", "relatorios.xlsx"]:
-            if os.path.exists(arq): os.remove(arq)
-        print("\n✅ Relatórios apagados com sucesso!")
-
+        msg("\n🧹 Limpando relatórios...", "info")
+        time.sleep(0.6)
+        for arq in (ARQ_REL, ARQ_REL_XLSX):
+            try:
+                if arq.exists(): arq.unlink()
+            except Exception:
+                pass
+        msg("\n✅ Relatórios apagados com sucesso!", "ok")
     elif escolha == "2":
-        print("\n🧹 Limpando agendamentos...")
-        time.sleep(1.5)
-        if os.path.exists("agendamentos.csv"):
-            os.remove("agendamentos.csv")
-        print("\n✅ Agendamentos apagados com sucesso!")
-
+        msg("\n🧹 Limpando agendamentos...", "info")
+        time.sleep(0.6)
+        try:
+            if ARQ_AG.exists(): ARQ_AG.unlink()
+            xlsx = Path("agendamentos.xlsx")
+            if xlsx.exists(): xlsx.unlink()
+        except Exception:
+            pass
+        msg("\n✅ Agendamentos apagados com sucesso!", "ok")
     elif escolha == "3":
-        print("\n🧹 Limpando alunos...")
-        time.sleep(1.5)
-        for arq in ["alunos.csv", "alunos.xlsx"]:
-            if os.path.exists(arq): os.remove(arq)
-        print("\n✅ Alunos apagados com sucesso!")
-
+        msg("\n🧹 Limpando alunos...", "info")
+        time.sleep(0.6)
+        for arq in (ARQ_ALUNOS, ARQ_ALUNOS_XLSX):
+            try:
+                if arq.exists(): arq.unlink()
+            except Exception:
+                pass
+        msg("\n✅ Alunos apagados com sucesso!", "ok")
     elif escolha == "4":
-        print("\n🧹 Limpando todos os dados do sistema...")
-        time.sleep(2)
-        for arq in ["relatorios.csv", "relatorios.xlsx", "agendamentos.csv", "alunos.csv", "alunos.xlsx"]:
-            if os.path.exists(arq): os.remove(arq)
-        print("\n✅ Todos os dados foram apagados com sucesso!")
-
+        msg("\n🧹 Limpando todos os dados do sistema...", "info")
+        time.sleep(0.6)
+        arquivos = [ARQ_REL, ARQ_REL_XLSX, ARQ_AG, ARQ_ALUNOS, ARQ_ALUNOS_XLSX, Path("agendamentos.xlsx")]
+        for arq in arquivos:
+            try:
+                if arq.exists(): arq.unlink()
+            except Exception:
+                pass
+        msg("\n✅ Todos os dados foram apagados com sucesso!", "ok")
     elif escolha == "5":
         return
     else:
-        print("\n⚠ Opção inválida.")
+        msg("\n⚠ Opção inválida.", "warn")
 
-# -------------------- MENU PRINCIPAL --------------------
-if acesso_liberado:
+def login():
+    acesso_liberado = False
+    usuario_logado = None
+    while not acesso_liberado:
+        print("\n=== LOGIN ===")
+        usuario = input("Digite seu login: ").lower().strip()
+        senha = pwinput.pwinput(prompt="Digite a senha: ", mask="*").strip()
+        limpar_tela()
+        if usuario in USERS and USERS[usuario]["senha"] == senha:
+            msg("\n✅ Login efetuado com sucesso", "ok")
+            usuario_logado = usuario
+            acesso_liberado = True
+            time.sleep(0.4)
+        else:
+            msg("\n❌ Login inválido. Tente novamente", "err")
+            time.sleep(0.6)
+            limpar_tela()
+    return usuario_logado
+
+def main():
+    usuario = login()
     while True:
         print("\n=== MENU PRINCIPAL ===")
         print("1 - Computadores")
         print("2 - Agendamento")
         print("3 - Relatório")
         print("4 - Sair")
-        if usuario_logado == "admin":
+        if usuario == "admin":
             print("5 - Limpar dados")
-
-        opcao = input("Escolha o que deseja fazer: ")
-
+        opcao = input("Escolha o que deseja fazer: ").strip()
         if opcao == "1":
-            menu_computadores()
+            menu_computadores(usuario)
         elif opcao == "2":
-            menu_agendamento()
+            menu_agendamento(usuario)
         elif opcao == "3":
-            gerar_relatorio()
+            gerar_relatorio(usuario)
         elif opcao == "4":
-            print("\n👋 Saindo do sistema...")
-            time.sleep(1)
+            msg("\n👋 Saindo do sistema...", "info")
+            time.sleep(0.4)
             break
-        elif opcao == "5" and usuario_logado == "admin":
-            limpar_dados()
+        elif opcao == "5" and usuario == "admin":
+            limpar_dados(usuario)
         else:
-            print("\n⚠ Opção inválida.")
+            msg("\n⚠ Opção inválida.", "warn")
+
+if __name__ == "__main__":
+    main()
