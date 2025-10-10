@@ -17,11 +17,13 @@ Usuarios = {
 acesso_liberado = False
 usuario_logado = None
 
+def limpar_tela():
+    os.system("cls" if os.name == "nt" else "clear")
+
 while not acesso_liberado:
     usuario = input("\nDigite seu login: ").lower().strip()
     senha = pwinput.pwinput(prompt="Digite a senha: ", mask="*").lower().strip()
-
-    os.system("cls" if os.name == "nt" else "clear")
+    limpar_tela()
 
     if usuario in Usuarios and Usuarios[usuario] == senha:
         print("\n✅ Login efetuado com sucesso")
@@ -33,35 +35,45 @@ while not acesso_liberado:
         print("\n❌ Login inválido. Tente novamente")
         print("_"*32 + "\n")
         time.sleep(1)
-        os.system("cls" if os.name == "nt" else "clear")
-
+        limpar_tela()
 
 # -------------------- FUNÇÕES DE VALIDAÇÃO --------------------
-def validar_data(data_str):
-    try:
-        return datetime.strptime(data_str, "%d/%m/%Y").strftime("%d/%m/%Y")
-    except ValueError:
-        print("⚠ Data inválida! Use o formato DD/MM/AAAA.")
+def validar_nome(nome):
+    if nome.replace(" ", "").isalpha():
+        return nome.title().strip()
+    else:
+        print("⚠ O nome deve conter apenas letras e espaços.")
         return None
 
+def validar_numero(texto):
+    if texto.isdigit():
+        return texto
+    else:
+        print("⚠ Digite apenas números.")
+        return None
+
+def validar_data(data_str):
+    try:
+        data = datetime.strptime(data_str, "%d/%m/%Y")
+        return data.strftime("%d/%m/%Y")
+    except ValueError:
+        print("⚠ Data inválida! Use o formato DD/MM/AAAA e verifique se o dia existe.")
+        return None
 
 def validar_hora(hora_str):
     try:
-        return datetime.strptime(hora_str, "%H:%M").strftime("%H:%M")
+        hora = datetime.strptime(hora_str, "%H:%M")
+        return hora.strftime("%H:%M")
     except ValueError:
-        print("⚠ Horário inválido! Use o formato HH:MM.")
+        print("⚠ Horário inválido! Use o formato HH:MM (00–23h / 00–59min).")
         return None
 
-
-def confirmar_sn(pergunta):
-    """Garante que o usuário digite apenas 's' ou 'n'"""
-    resposta = ""
-    while resposta not in ["s", "n"]:
-        resposta = input(pergunta).lower().strip()
-        if resposta not in ["s", "n"]:
-            print("⚠ Entrada inválida! Digite apenas 's' para sim ou 'n' para não.")
-    return resposta
-
+def confirmar_sn(mensagem):
+    while True:
+        resposta = input(mensagem + " (s/n): ").lower().strip()
+        if resposta in ["s", "n"]:
+            return resposta
+        print("⚠ Responda apenas com 's' para sim ou 'n' para não.")
 
 # -------------------- MENU COMPUTADORES --------------------
 def menu_computadores():
@@ -76,15 +88,22 @@ def menu_computadores():
 
     # -------------------- REGISTRAR --------------------
     if escolha == "1":
-        pc = input("Digite o número do PC (ex: 01, 02...): ").strip().upper()
-        if not pc.startswith("PC"):
-            pc = "PC" + pc.zfill(2).replace("PC", "")
-        nome = input("Digite o nome do aluno: ").strip()
+        numero_pc = None
+        while not numero_pc:
+            numero_pc = validar_numero(input("Digite o número do PC (ex: 01, 02...): ").strip())
+        pc = f"PC{numero_pc.zfill(2)}"
+
+        nome = None
+        while not nome:
+            nome = validar_nome(input("Digite o nome do aluno: ").strip())
 
         print("\nDeseja usar a data e hora atuais para o registro?")
         print("1 - Sim, usar data e hora atuais")
         print("2 - Não, quero inserir manualmente")
-        opc = input("Escolha uma opção: ").strip()
+
+        opc = ""
+        while opc not in ["1", "2"]:
+            opc = input("Escolha uma opção (1/2): ").strip()
 
         if opc == "1":
             agora = datetime.now()
@@ -94,31 +113,22 @@ def menu_computadores():
             print(f"\n📅 Data atual: {data_automatica}")
             print(f"🕒 Horário atual: {hora_automatica}")
 
-            confirmar = confirmar_sn("Deseja confirmar essa data e hora? (s/n): ")
-            if confirmar == "s":
+            if confirmar_sn("Deseja confirmar essa data e hora?") == "s":
                 data = data_automatica
                 entrada = hora_automatica
                 print("\n✅ Data e hora registradas automaticamente.")
             else:
                 print("\n🔧 Ok, insira manualmente os dados.")
-                data = None
-                while not data:
-                    data = validar_data(input("Digite a data (DD/MM/AAAA): ").strip())
-
-                entrada = None
-                while not entrada:
-                    entrada = validar_hora(input("Digite o horário de entrada (HH:MM): ").strip())
-
+                data, entrada = None, None
         else:
-            data = None
-            while not data:
-                data = validar_data(input("Digite a data (DD/MM/AAAA): ").strip())
+            data, entrada = None, None
 
-            entrada = None
-            while not entrada:
-                entrada = validar_hora(input("Digite o horário de entrada (HH:MM): ").strip())
+        while not data:
+            data = validar_data(input("Digite a data (DD/MM/AAAA): ").strip())
 
-        # Horário de saída continua sendo manual
+        while not entrada:
+            entrada = validar_hora(input("Digite o horário de entrada (HH:MM): ").strip())
+
         saida = None
         while not saida:
             saida = validar_hora(input("Digite o horário de saída (HH:MM): ").strip())
@@ -188,7 +198,17 @@ def menu_computadores():
 
         print("\nDeixe em branco para não alterar.")
         novo_pc = input(f"PC atual ({dados.loc[idx,'pc']}): ").strip()
+        if novo_pc:
+            num = validar_numero(novo_pc.replace("PC", "").replace("pc", ""))
+            if num:
+                novo_pc = f"PC{num.zfill(2)}"
+            else:
+                novo_pc = dados.loc[idx, "pc"]
+
         novo_nome = input(f"Nome atual ({dados.loc[idx,'nome']}): ").strip()
+        if novo_nome:
+            validado = validar_nome(novo_nome)
+            novo_nome = validado if validado else dados.loc[idx, "nome"]
 
         nova_data = input(f"Data atual ({dados.loc[idx,'data']}): ").strip()
         if nova_data:
@@ -205,11 +225,11 @@ def menu_computadores():
         print("\n🔄 Atualizando registro...")
         time.sleep(1.3)
 
-        if novo_pc: dados.loc[idx,"pc"] = novo_pc
-        if novo_nome: dados.loc[idx,"nome"] = novo_nome
-        if nova_data: dados.loc[idx,"data"] = nova_data
-        if nova_entrada: dados.loc[idx,"entrada"] = nova_entrada
-        if nova_saida: dados.loc[idx,"saida"] = nova_saida
+        if novo_pc: dados.loc[idx, "pc"] = novo_pc
+        if novo_nome: dados.loc[idx, "nome"] = novo_nome
+        if nova_data: dados.loc[idx, "data"] = nova_data
+        if nova_entrada: dados.loc[idx, "entrada"] = nova_entrada
+        if nova_saida: dados.loc[idx, "saida"] = nova_saida
 
         dados.to_csv("alunos.csv", index=False)
         dados.to_excel("alunos.xlsx", index=False)
@@ -239,33 +259,32 @@ def menu_computadores():
             print("\n⚠ Entrada inválida.")
             return
 
-        confirmacao = confirmar_sn(
-            f"Tem certeza que deseja excluir o registro de {dados.loc[idx,'nome']} no dia {dados.loc[idx,'data']}? (s/n): "
-        )
-
-        if confirmacao == "s":
+        if confirmar_sn(f"Tem certeza que deseja excluir o registro de {dados.loc[idx,'nome']} no dia {dados.loc[idx,'data']}?") == "s":
             print("\n🗑 Apagando registro...")
             time.sleep(1)
+
             dados = dados.drop(idx).reset_index(drop=True)
             dados.to_csv("alunos.csv", index=False)
             dados.to_excel("alunos.xlsx", index=False)
+
             print("\n✅ Registro excluído com sucesso!")
         else:
             print("\n⚠ Exclusão cancelada.")
 
-    # -------------------- VOLTAR --------------------
     elif escolha == "5":
         return
     else:
-        print("\n⚠ Opção inválida")
-
+        print("\n⚠ Opção inválida.")
 
 # -------------------- FUNÇÃO RELATÓRIO --------------------
 def gerar_relatorio():
     print("\n=== RELATÓRIO DE AULA ===")
-    professor = input("Digite seu nome (professor): ").strip()
-    descricao = input("Digite o relatório da aula: ").strip()
 
+    professor = None
+    while not professor:
+        professor = validar_nome(input("Digite seu nome (professor): ").strip())
+
+    descricao = input("Digite o relatório da aula: ").strip()
     print("\n💾 Salvando relatório...")
     time.sleep(1.3)
 
@@ -287,7 +306,6 @@ def gerar_relatorio():
         novo_relatorio.to_excel(arquivo_xlsx, index=False)
 
     print("\n✅ Relatório salvo com sucesso!")
-
 
 # -------------------- AGENDAMENTOS --------------------
 def menu_agendamento():
@@ -373,7 +391,6 @@ def menu_agendamento():
     else:
         print("\n⚠ Opção inválida")
 
-
 # -------------------- LIMPAR DADOS (ADMIN) --------------------
 def limpar_dados():
     if usuario_logado != "admin":
@@ -421,7 +438,6 @@ def limpar_dados():
         return
     else:
         print("\n⚠ Opção inválida.")
-
 
 # -------------------- MENU PRINCIPAL --------------------
 if acesso_liberado:
