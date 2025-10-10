@@ -68,14 +68,44 @@ def menu_computadores():
         pc = input("Digite o número de série do PC: ").strip()
         nome = input("Digite o nome do aluno: ").strip()
 
-        data = None
-        while not data:
-            data = validar_data(input("Digite a data (DD/MM/AAAA): ").strip())
+        print("\nDeseja usar a data e hora atuais para o registro?")
+        print("1 - Sim, usar data e hora atuais")
+        print("2 - Não, quero inserir manualmente")
+        opc = input("Escolha uma opção: ").strip()
 
-        entrada = None
-        while not entrada:
-            entrada = validar_hora(input("Digite o horário de entrada (HH:MM): ").strip())
+        if opc == "1":
+            agora = datetime.now()
+            data_automatica = agora.strftime("%d/%m/%Y")
+            hora_automatica = agora.strftime("%H:%M")
 
+            print(f"\n📅 Data atual: {data_automatica}")
+            print(f"🕒 Horário atual: {hora_automatica}")
+
+            confirmar = input("Deseja confirmar essa data e hora? (s/n): ").lower().strip()
+            if confirmar == "s":
+                data = data_automatica
+                entrada = hora_automatica
+                print("\n✅ Data e hora registradas automaticamente.")
+            else:
+                print("\n🔧 Ok, insira manualmente os dados.")
+                data = None
+                while not data:
+                    data = validar_data(input("Digite a data (DD/MM/AAAA): ").strip())
+
+                entrada = None
+                while not entrada:
+                    entrada = validar_hora(input("Digite o horário de entrada (HH:MM): ").strip())
+
+        else:
+            data = None
+            while not data:
+                data = validar_data(input("Digite a data (DD/MM/AAAA): ").strip())
+
+            entrada = None
+            while not entrada:
+                entrada = validar_hora(input("Digite o horário de entrada (HH:MM): ").strip())
+
+        # Horário de saída continua sendo manual
         saida = None
         while not saida:
             saida = validar_hora(input("Digite o horário de saída (HH:MM): ").strip())
@@ -104,6 +134,7 @@ def menu_computadores():
             novo_registro.to_excel(arquivo_xlsx, index=False)
 
         print("\n✅ Registro salvo com sucesso!")
+
 
     # -------------------- CONSULTAR --------------------
     elif escolha == "2":
