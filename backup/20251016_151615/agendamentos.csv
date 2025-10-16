@@ -11,7 +11,7 @@ PC01,16:00 - 17:00,livre,Disponível
 PC01,17:00 - 18:00,livre,Disponível
 PC01,18:00 - 19:00,Prof. Técnico,Agendado
 PC01,19:00 - 20:00,livre,Disponível
-PC01,20:00 - 21:00,Administrador,Agendado
+PC01,20:00 - 21:00,livre,Disponível
 PC02,08:00 - 09:00,livre,Disponível
 PC02,09:00 - 10:00,livre,Disponível
 PC02,10:00 - 11:00,livre,Disponível
@@ -24,7 +24,7 @@ PC02,16:00 - 17:00,proftec,Agendado
 PC02,17:00 - 18:00,livre,Disponível
 PC02,18:00 - 19:00,livre,Disponível
 PC02,19:00 - 20:00,admin,Agendado
-PC02,20:00 - 21:00,Administrador,Agendado
+PC02,20:00 - 21:00,livre,Disponível
 PC03,08:00 - 09:00,livre,Disponível
 PC03,09:00 - 10:00,livre,Disponível
 PC03,10:00 - 11:00,livre,Disponível
@@ -37,4 +37,4 @@ PC03,16:00 - 17:00,livre,Disponível
 PC03,17:00 - 18:00,livre,Disponível
 PC03,18:00 - 19:00,livre,Disponível
 PC03,19:00 - 20:00,livre,Disponível
-PC03,20:00 - 21:00,Administrador,Agendado
+PC03,20:00 - 21:00,livre,Disponível
